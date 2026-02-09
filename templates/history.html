@@ -1,0 +1,277 @@
+{% extends "base.html" %}
+
+{% block title %}历史记录 - Zenith Publisher{% endblock %}
+
+{% block extra_css %}
+body {
+    padding-top: 60px;
+}
+
+.container {
+    width: 100%;
+    max-width: 600px;
+    padding: 20px 16px;
+}
+
+.page-header {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.page-title {
+    color: white;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.post-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.post-card {
+    background: #363636;
+    border-radius: 12px;
+    padding: 16px;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.post-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.post-meta {
+    flex: 1;
+}
+
+.author-name {
+    color: white;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.post-time {
+    color: rgba(255,255,255,0.5);
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.platform-badges {
+    display: flex;
+    gap: 6px;
+}
+
+.platform-badge {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.badge-twitter {
+    background: rgba(29, 161, 242, 0.15);
+    color: #1DA1F2;
+}
+
+.badge-twitter.failed {
+    background: rgba(255, 0, 0, 0.15);
+    color: #ff4444;
+}
+
+.badge-zhihu {
+    background: rgba(0, 132, 255, 0.15);
+    color: #0084FF;
+}
+
+.badge-zhihu.failed {
+    background: rgba(255, 0, 0, 0.15);
+    color: #ff4444;
+}
+
+.post-content {
+    color: rgba(255,255,255,0.9);
+    font-size: 15px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
+
+.post-images {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.post-image {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: rgba(255,255,255,0.5);
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: rgba(255,255,255,0.5);
+}
+
+.empty-state .material-symbols-outlined {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.load-more {
+    text-align: center;
+    padding: 20px;
+}
+
+.load-more-btn {
+    padding: 10px 24px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 20px;
+    color: rgba(255,255,255,0.8);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.load-more-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1 class="page-title">发布历史</h1>
+    </div>
+    
+    <div id="postList" class="post-list">
+        <div class="loading">加载中...</div>
+    </div>
+    
+    <div id="loadMore" class="load-more" style="display: none;">
+        <button class="load-more-btn" onclick="loadMore()">加载更多</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let currentPage = 1;
+    let isLoading = false;
+    let hasMore = true;
+    
+    async function loadPosts(page = 1) {
+        if (isLoading) return;
+        isLoading = true;
+        
+        try {
+            const response = await fetch(`/api/history?page=${page}&per_page=20`);
+            const data = await response.json();
+            
+            const postList = document.getElementById('postList');
+            
+            if (page === 1 && data.posts.length === 0) {
+                postList.innerHTML = `
+                    <div class="empty-state">
+                        <span class="material-symbols-outlined">inbox</span>
+                        <p>暂无发布记录</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const postsHtml = data.posts.map(post => `
+                <div class="post-card">
+                    <div class="post-header">
+                        <div class="avatar">Z</div>
+                        <div class="post-meta">
+                            <div class="author-name">Zenith Publisher</div>
+                            <div class="post-time">${post.created_at}</div>
+                        </div>
+                        <div class="platform-badges">
+                            ${post.platforms.includes('twitter') ? `
+                                <span class="platform-badge ${post.twitter_success ? 'badge-twitter' : 'badge-twitter failed'}">
+                                    ${post.twitter_success ? 'X' : 'X ✗'}
+                                </span>
+                            ` : ''}
+                            ${post.platforms.includes('zhihu') ? `
+                                <span class="platform-badge ${post.zhihu_success ? 'badge-zhihu' : 'badge-zhihu failed'}">
+                                    ${post.zhihu_success ? '知乎' : '知乎 ✗'}
+                                </span>
+                            ` : ''}
+                        </div>
+                    </div>
+                    <div class="post-content">${escapeHtml(post.content)}</div>
+                    ${post.image_paths.length > 0 ? `
+                        <div class="post-images">
+                            ${post.image_paths.map(img => `<img src="${img}" class="post-image" alt="">`).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `).join('');
+            
+            if (page === 1) {
+                postList.innerHTML = postsHtml;
+            } else {
+                postList.insertAdjacentHTML('beforeend', postsHtml);
+            }
+            
+            hasMore = data.current_page < data.pages;
+            document.getElementById('loadMore').style.display = hasMore ? 'block' : 'none';
+            
+        } catch (error) {
+            console.error('Error:', error);
+            document.getElementById('postList').innerHTML = `
+                <div class="empty-state">
+                    <p>加载失败，请刷新重试</p>
+                </div>
+            `;
+        }
+        
+        isLoading = false;
+    }
+    
+    function loadMore() {
+        currentPage++;
+        loadPosts(currentPage);
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    loadPosts();
+</script>
+{% endblock %}

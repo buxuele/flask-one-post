@@ -1,0 +1,738 @@
+{% extends "base.html" %}
+
+{% block title %}Zenith Publisher{% endblock %}
+
+{% block extra_css %}
+.container {
+    width: 100%;
+    max-width: 700px;
+    min-height: 520px;
+    background-color: #363636;
+    border-radius: 12px;
+    box-shadow: 0 24px 48px -12px rgba(0,0,0,0.6);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.ai-button {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 8px;
+    color: rgba(255,255,255,0.8);
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.ai-button .material-symbols-outlined {
+    font-size: 14px;
+}
+
+.editor-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 280px;
+    padding: 0;
+    position: relative;
+}
+
+.editor-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+textarea {
+    width: 100%;
+    flex: 1;
+    min-height: 240px;
+    background: #404040;
+    border: none;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    outline: none;
+    font-size: 18px;
+    line-height: 1.6;
+    color: white;
+    resize: none;
+    font-weight: 500;
+    padding: 24px 32px;
+    padding-bottom: 40px;
+}
+
+textarea:focus {
+    background: #454545;
+}
+
+textarea::placeholder {
+    color: rgba(255,255,255,0.35);
+}
+
+.char-counter {
+    position: absolute;
+    bottom: 12px;
+    right: 32px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.4);
+    pointer-events: none;
+}
+
+.char-counter.warning {
+    color: #FF9500;
+}
+
+.char-counter.error {
+    color: #FF3B30;
+}
+
+.image-preview-area {
+    padding: 12px 32px;
+    background: rgba(0,0,0,0.1);
+    border-top: 1px solid rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: none;
+}
+
+.image-preview-area.has-images {
+    display: block;
+}
+
+.image-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.image-item {
+    position: relative;
+    width: 70px;
+    height: 70px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    cursor: grab;
+    user-select: none;
+}
+
+.image-item.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+.image-item.drag-over {
+    border-color: #145A7C;
+    transform: scale(1.05);
+}
+
+.image-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+}
+
+.drag-handle {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 18px;
+    height: 18px;
+    background: rgba(0,0,0,0.6);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: grab;
+    color: white;
+    font-size: 12px;
+}
+
+.remove-btn {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    background: rgba(0,0,0,0.6);
+    border: none;
+    color: white;
+    border-radius: 50%;
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 10px;
+}
+
+.footer-toolbar {
+    padding: 0 32px 24px;
+    background: #363636;
+}
+
+.toolbar-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    padding-top: 20px;
+}
+
+@media (min-width: 640px) {
+    .toolbar-content {
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+    }
+}
+
+.toolbar-left {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.platform-select {
+    display: flex;
+    gap: 8px;
+}
+
+.platform-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.05);
+    color: rgba(255,255,255,0.5);
+    transition: all 0.2s ease;
+}
+
+.platform-btn.active {
+    background: #145A7C;
+    border-color: #145A7C;
+    color: white;
+}
+
+.platform-icon {
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.platform-icon svg {
+    width: 100%;
+    height: 100%;
+    fill: currentColor;
+}
+
+.progress-drawer {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%) translateY(100%);
+    width: 100%;
+    max-width: 700px;
+    background: rgba(54, 54, 54, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-bottom: none;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.4);
+    padding: 20px 24px;
+    z-index: 200;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.progress-drawer.show {
+    transform: translateX(-50%) translateY(0);
+}
+
+.progress-drawer-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.progress-title {
+    color: rgba(255,255,255,0.9);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.progress-close {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.5);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.progress-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+}
+
+.progress-item {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.75);
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+.progress-item:last-child {
+    border-bottom: none;
+}
+
+.progress-time {
+    color: rgba(255,255,255,0.4);
+    min-width: 54px;
+    font-family: monospace;
+}
+
+.progress-result {
+    font-size: 12px;
+    color: rgba(255,255,255,0.9);
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    border-left: 3px solid #145A7C;
+}
+
+.progress-result.success {
+    border-left-color: #34C759;
+}
+
+.progress-result.error {
+    border-left-color: #FF3B30;
+}
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <button class="ai-button" id="refineBtn" title="AI 润色">
+        <span class="material-symbols-outlined" id="refineIcon">auto_fix_high</span>
+        <span>AI 润色</span>
+    </button>
+
+    <div class="editor-area">
+        <div class="editor-wrapper">
+            <textarea id="contentInput" placeholder="在此输入您的内容..."></textarea>
+            <div class="char-counter" id="charCounter">0/140</div>
+        </div>
+    </div>
+    
+    <div class="image-preview-area">
+        <div class="image-grid" id="imageGrid">
+            {% for img in images %}
+            <div class="image-item" data-id="{{ img.id }}" data-index="{{ loop.index0 }}" draggable="true">
+                <div class="drag-handle">
+                    <span class="material-symbols-outlined" style="font-size: 12px;">drag_indicator</span>
+                </div>
+                <img src="{{ img.url }}" alt="Preview" draggable="false">
+                <button class="remove-btn" onclick="event.stopPropagation(); removeImage('{{ img.id }}')">
+                    <span class="material-symbols-outlined" style="font-size: 10px;">close</span>
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div class="footer-toolbar">
+        <div class="toolbar-content">
+            <div class="toolbar-left">
+                <input type="file" id="fileInput" class="hidden" accept="image/*" multiple>
+                <button class="btn btn-outline" onclick="document.getElementById('fileInput').click()">
+                    <span class="material-symbols-outlined" style="font-size: 14px;">image</span>
+                    <span>添加图片</span>
+                </button>
+
+                <div class="platform-select" id="platformSelect">
+                    <button class="platform-btn active" data-platform="twitter" title="X">
+                        <span class="platform-icon" style="width: 16px; height: 16px;">
+                            <svg viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                        </span>
+                    </button>
+                </div>
+            </div>
+            
+            <button class="btn btn-primary" id="publishBtn">
+                <span>立即发布</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="progress-drawer" id="progressDrawer">
+    <div class="progress-drawer-header">
+        <div class="progress-title">发布进度</div>
+        <button class="progress-close" id="progressClose">
+            <span class="material-symbols-outlined" style="font-size: 18px;">close</span>
+        </button>
+    </div>
+    <div class="progress-list" id="progressList"></div>
+    <div class="progress-result" id="progressResult"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    let images = {{ images | tojson }};
+    let isPublishing = false;
+    let isAILoading = false;
+    
+    const contentInput = document.getElementById('contentInput');
+    const imageGrid = document.getElementById('imageGrid');
+    const fileInput = document.getElementById('fileInput');
+    const refineBtn = document.getElementById('refineBtn');
+    const refineIcon = document.getElementById('refineIcon');
+    const publishBtn = document.getElementById('publishBtn');
+    const progressDrawer = document.getElementById('progressDrawer');
+    const progressList = document.getElementById('progressList');
+    const progressResult = document.getElementById('progressResult');
+    const progressClose = document.getElementById('progressClose');
+    const charCounter = document.getElementById('charCounter');
+
+    let publishTimer = null;
+    let autoCloseTimer = null;
+    const CHAR_LIMIT = 140;
+    const CHAR_WARNING = 120;
+    
+    function renderImages() {
+        const previewArea = document.querySelector('.image-preview-area');
+        imageGrid.innerHTML = images.map((img, index) => `
+            <div class="image-item" data-id="${img.id}" data-index="${index}" draggable="true">
+                <div class="drag-handle">
+                    <span class="material-symbols-outlined" style="font-size: 12px;">drag_indicator</span>
+                </div>
+                <img src="${img.url}" alt="Preview" draggable="false">
+                <button class="remove-btn" onclick="event.stopPropagation(); removeImage('${img.id}')">
+                    <span class="material-symbols-outlined" style="font-size: 10px;">close</span>
+                </button>
+            </div>
+        `).join('');
+
+        if (images.length > 0) {
+            previewArea.classList.add('has-images');
+        } else {
+            previewArea.classList.remove('has-images');
+        }
+
+        setupDragAndDrop();
+    }
+
+    let draggedItem = null;
+
+    function setupDragAndDrop() {
+        const items = document.querySelectorAll('.image-item');
+        items.forEach(item => {
+            item.addEventListener('dragstart', handleDragStart);
+            item.addEventListener('dragend', handleDragEnd);
+            item.addEventListener('dragover', handleDragOver);
+            item.addEventListener('drop', handleDrop);
+            item.addEventListener('dragenter', handleDragEnter);
+            item.addEventListener('dragleave', handleDragLeave);
+        });
+    }
+
+    function handleDragStart(e) {
+        draggedItem = this;
+        this.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', this.dataset.id);
+    }
+
+    function handleDragEnd(e) {
+        this.classList.remove('dragging');
+        draggedItem = null;
+        document.querySelectorAll('.image-item').forEach(item => {
+            item.classList.remove('drag-over');
+        });
+    }
+
+    function handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    }
+
+    function handleDragEnter(e) {
+        e.preventDefault();
+        if (this !== draggedItem) {
+            this.classList.add('drag-over');
+        }
+    }
+
+    function handleDragLeave(e) {
+        this.classList.remove('drag-over');
+    }
+
+    function handleDrop(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+
+        if (this === draggedItem || !draggedItem) return;
+
+        const draggedId = draggedItem.dataset.id;
+        const targetId = this.dataset.id;
+
+        const draggedIndex = images.findIndex(img => img.id === draggedId);
+        const targetIndex = images.findIndex(img => img.id === targetId);
+
+        if (draggedIndex !== -1 && targetIndex !== -1) {
+            const [movedItem] = images.splice(draggedIndex, 1);
+            images.splice(targetIndex, 0, movedItem);
+            renderImages();
+        }
+    }
+    
+    function removeImage(id) {
+        images = images.filter(img => img.id !== id);
+        renderImages();
+    }
+    
+    fileInput.addEventListener('change', async (e) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length === 0) return;
+        fileInput.value = '';
+
+        const formData = new FormData();
+        files.forEach(file => formData.append('images', file));
+
+        try {
+            const response = await fetch('/api/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (!data.success) {
+                alert(data.message || '图片上传失败');
+                return;
+            }
+            images = images.concat(data.images || []);
+            renderImages();
+        } catch (error) {
+            console.error('Error:', error);
+            alert('图片上传失败，请检查控制台');
+        }
+    });
+    
+    document.querySelectorAll('.platform-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            btn.classList.toggle('active');
+        });
+    });
+
+    function updateCharCounter() {
+        const count = contentInput.value.length;
+        charCounter.textContent = `${count}/${CHAR_LIMIT}`;
+
+        charCounter.classList.remove('warning', 'error');
+        publishBtn.disabled = count > CHAR_LIMIT;
+
+        if (count > CHAR_LIMIT) {
+            charCounter.classList.add('error');
+        } else if (count > CHAR_WARNING) {
+            charCounter.classList.add('warning');
+        }
+    }
+
+    contentInput.addEventListener('input', updateCharCounter);
+    updateCharCounter();
+
+    progressClose.addEventListener('click', () => {
+        progressDrawer.classList.remove('show');
+        if (autoCloseTimer) {
+            clearTimeout(autoCloseTimer);
+            autoCloseTimer = null;
+        }
+    });
+
+    renderImages();
+
+    refineBtn.addEventListener('click', async () => {
+        const content = contentInput.value;
+        if (!content || isAILoading) return;
+
+        isAILoading = true;
+        refineIcon.textContent = 'refresh';
+        refineIcon.classList.add('loading');
+
+        try {
+            const response = await fetch('/api/suggest-hashtags', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content })
+            });
+            const data = await response.json();
+
+            if (data.hashtags && data.hashtags.length > 0) {
+                const hashtagStr = data.hashtags.map(t => `#${t.replace(/^#/, '')}`).join(' ');
+                contentInput.value = contentInput.value.trim() + '\n\n' + hashtagStr;
+                updateCharCounter();
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+
+        isAILoading = false;
+        refineIcon.textContent = 'auto_fix_high';
+        refineIcon.classList.remove('loading');
+    });
+    
+    publishBtn.addEventListener('click', async () => {
+        const content = contentInput.value;
+        if (!content || isPublishing) return;
+        
+        const platformBtns = document.querySelectorAll('.platform-btn.active');
+        const platforms = Array.from(platformBtns).map(btn => btn.dataset.platform);
+        
+        if (platforms.length === 0) {
+            alert('请至少选择一个发布平台');
+            return;
+        }
+        
+        isPublishing = true;
+        publishBtn.disabled = true;
+        publishBtn.innerHTML = '<span>发布中...</span>';
+        progressDrawer.classList.add('show');
+        progressList.innerHTML = '';
+        progressResult.textContent = '';
+        progressResult.className = 'progress-result';
+        
+        try {
+            const imagePaths = images.map(img => img.path).filter(Boolean);
+            const response = await fetch('/api/publish', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content, platforms, image_paths: imagePaths })
+            });
+            const data = await response.json();
+            if (!data.success) {
+                progressResult.textContent = data.message || '发布失败';
+                progressResult.classList.add('error');
+                stopPublishing();
+                return;
+            }
+
+            const jobId = data.job_id;
+            if (!jobId) {
+                progressResult.textContent = '未获取到任务编号';
+                progressResult.classList.add('error');
+                stopPublishing();
+                return;
+            }
+
+            publishTimer = setInterval(() => pollPublishStatus(jobId, content), 1000);
+        } catch (error) {
+            console.error('Error:', error);
+            progressResult.textContent = '发布失败，请检查控制台';
+            progressResult.classList.add('error');
+            stopPublishing();
+        }
+    });
+
+    async function pollPublishStatus(jobId, originalContent) {
+        try {
+            const response = await fetch(`/api/publish/status/${jobId}`);
+            const data = await response.json();
+            if (!data.success || !data.job) {
+                progressResult.textContent = data.message || '任务状态获取失败';
+                progressResult.classList.add('error');
+                stopPublishing();
+                return;
+            }
+
+            const job = data.job;
+            renderProgress(job.steps || []);
+
+            if (job.status === 'done') {
+                progressResult.textContent = job.message || '发布完成';
+                progressResult.classList.add(job.success ? 'success' : 'error');
+                if (job.success) {
+                    contentInput.value = '';
+                    images = [];
+                    renderImages();
+                    updateCharCounter();
+                    autoCloseTimer = setTimeout(() => {
+                        progressDrawer.classList.remove('show');
+                    }, 3000);
+                } else if (originalContent) {
+                    contentInput.value = originalContent;
+                }
+                stopPublishing();
+                return;
+            }
+
+            if (job.status === 'error') {
+                progressResult.textContent = job.message || '发布失败';
+                progressResult.classList.add('error');
+                stopPublishing();
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            progressResult.textContent = '发布状态获取失败';
+            progressResult.classList.add('error');
+            stopPublishing();
+        }
+    }
+
+    function renderProgress(steps) {
+        progressList.innerHTML = steps.map(step => `
+            <div class="progress-item">
+                <span class="progress-time">${escapeHtml(step.time || '')}</span>
+                <span>${escapeHtml(step.message || '')}</span>
+            </div>
+        `).join('');
+        progressList.scrollTop = progressList.scrollHeight;
+    }
+
+    function stopPublishing() {
+        isPublishing = false;
+        publishBtn.disabled = false;
+        publishBtn.innerHTML = '<span>立即发布</span>';
+        if (publishTimer) {
+            clearInterval(publishTimer);
+            publishTimer = null;
+        }
+    }
+
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+</script>
+{% endblock %}
