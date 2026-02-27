@@ -158,7 +158,7 @@ def _copy_image_to_clipboard(image_path, progress=None):
     win32clipboard.CloseClipboard()
     _emit(progress, '知乎: 图片已复制到剪贴板')
 
-def _post_idea(page, content, image_path, progress=None):
+def _post_idea(page, content, image_paths, progress=None):
     _emit(progress, '知乎: 打开想法输入框')
     page.get_by_text('分享此刻的想法').click()
     page.wait_for_timeout(1500)
@@ -168,44 +168,61 @@ def _post_idea(page, content, image_path, progress=None):
     editor.fill(content)
     page.wait_for_timeout(800)
 
-    if image_path and os.path.exists(image_path):
-        _emit(progress, f'知乎: 处理图片 {os.path.basename(image_path)}')
-        _copy_image_to_clipboard(image_path, progress)
-        editor.focus()
-        page.wait_for_timeout(300)
-        page.keyboard.press('Control+V')
-        page.wait_for_timeout(8000)
+    if image_paths:
+        for img_path in image_paths:
+            if img_path and os.path.exists(img_path):
+                _emit(progress, f'知乎: 处理图片 {os.path.basename(img_path)}')
+                _copy_image_to_clipboard(img_path, progress)
+                editor.focus()
+                page.wait_for_timeout(300)
+                page.keyboard.press('Control+V')
+                page.wait_for_timeout(8000)
 
     _emit(progress, '知乎: 点击发布')
     page.get_by_role('button', name='发布').click()
     page.wait_for_timeout(2000)
+    
     _emit(progress, '知乎: 发布完成')
 
 def publish_to_zhihu(content, image_paths=None, progress=None):
-    image_path = None
-    for p in image_paths or []:
-        if p and os.path.exists(p):
-            image_path = p
-            break
+    # 收集多个图片路径
+    valid_image_paths = [p for p in (image_paths or []) if p and os.path.exists(p)]
 
     _emit(progress, '知乎: 启动浏览器')
-    with sync_playwright() as p:
-        browser = p.chromium.launch(headless=False)
-        context = browser.new_context(viewport=None)
-        page = context.new_page()
+    browser = None
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=False)
+            context = browser.new_context(viewport=None)
+            
+            if os.path.exists(COOKIES_FILE):
+                _load_cookies(context, progress)
+            
+            page = context.new_page()
 
-        _emit(progress, '知乎: 打开首页')
-        page.goto(ZHIHU_URL)
-        page.wait_for_timeout(1500)
+            # 参考 zhihu_post.py 的流程：先打开首页 -> 加载 cookies -> 刷新 -> 发布
+            _emit(progress, '知乎: 打开首页')
+            page.goto(ZHIHU_URL)
+            page.wait_for_timeout(1500)
 
-        _load_cookies(context, progress)
-        page.reload()
-        page.wait_for_timeout(2000)
+            _load_cookies(context, progress)
+            _emit(progress, '知乎: 刷新页面以应用 Cookies')
+            page.reload()
+            page.wait_for_timeout(2000)
 
-        _post_idea(page, content, image_path, progress)
-        _save_cookies(context, progress)
-
-    return True
+            _post_idea(page, content, valid_image_paths, progress)
+            _save_cookies(context, progress)
+            
+        return True
+    except Exception as e:
+        _emit(progress, f'知乎: 发布出错 - {str(e)}')
+        raise
+    finally:
+        if browser:
+            try:
+                browser.close()
+            except:
+                pass
 
 def publish_to_both(content, platforms, image_paths=None, progress=None):
     results = {'twitter': False, 'zhihu': False, 'messages': []}
