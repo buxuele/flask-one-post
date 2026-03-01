@@ -3,21 +3,12 @@
 {% block title %}Echo - 社交发布助手{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/index.css') }}?v=2">
 {% endblock %}
 
 {% block content %}
-<!-- 功能已隐藏：发布前自检面板 (quality-panel) -->
-<!-- 功能已隐藏：草稿箱面板 (draft-panel) -->
 
 <div class="container">
-    <button class="ai-button" id="refineBtn" title="AI 润色">
-        <span class="icon" id="refineIcon" style="width: 16px; height: 16px;">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M18.85 8.65l.65.65-.65.65-.65-.65.65-.65M12 4.58l2.5 2.5-2.5 2.5-2.5-2.5 2.5-2.5m9.07 3.07l-1.4-1.4-1.4 1.4 1.4 1.4 1.4-1.4M7.35 15.15l-.65-.65.65-.65.65.65-.65.65M12 19.42l-2.5-2.5 2.5-2.5 2.5 2.5-2.5 2.5m-7.07-3.07l1.4 1.4 1.4-1.4-1.4-1.4-1.4 1.4M18.85 15.35l.65-.65-.65-.65-.65.65.65.65M12 2L9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2z" fill="currentColor"/></svg>
-        </span>
-        <span>AI 润色</span>
-    </button>
-
     <div class="editor-area">
         <div class="editor-wrapper">
             <textarea id="contentInput" placeholder="在此输入您的内容..."></textarea>
@@ -56,6 +47,13 @@
                     <span>添加图片</span>
                 </button>
 
+                <button class="btn btn-outline" id="refineBtn" title="添加标签">
+                    <span class="icon" id="refineIcon" style="width: 16px; height: 16px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21.41 11.58l-9-9C12.05 2.22 11.55 2 11 2H4c-1.1 0-2 .9-2 2v7c0 .55.22 1.05.59 1.42l9 9c.36.36.86.58 1.41.58.55 0 1.05-.22 1.41-.59l7-7c.37-.36.59-.86.59-1.41 0-.55-.23-1.06-.59-1.42zM5.5 7C4.67 7 4 6.33 4 5.5S4.67 4 5.5 4 7 4.67 7 5.5 6.33 7 5.5 7z" fill="currentColor"/></svg>
+                    </span>
+                    <span>添加标签</span>
+                </button>
+
                 <div class="platform-select" id="platformSelect">
                     <button class="platform-btn active" data-platform="twitter" title="X">
                         <span class="platform-icon" style="width: 16px; height: 16px;">
@@ -77,29 +75,12 @@
     </div>
 </div>
 
-    <div class="progress-drawer" id="progressDrawer">
-    <div class="progress-drawer-header">
-        <div class="progress-title">发布进度</div>
-        <button class="progress-close" id="progressClose">
-            <span class="icon" style="width: 20px; height: 20px;">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="currentColor"/></svg>
-            </span>
-        </button>
-    </div>
-    <div class="progress-list" id="progressList"></div>
-    <div class="progress-result" id="progressResult"></div>
-</div>
-
 <div class="toast" id="toast"></div>
-
-<!-- 功能已隐藏：预览模态框 (previewModal) -->
-<!-- 功能已隐藏：定时发布模态框 (scheduleModal) -->
-<!-- 功能已隐藏：键盘快捷键提示 (shortcuts-hint) -->
 {% endblock %}
 
 {% block extra_js %}
 <script>
     window.INITIAL_IMAGES = {{ images | tojson }};
 </script>
-<script src="{{ url_for('static', filename='js/index.js') }}"></script>
+<script src="{{ url_for('static', filename='js/index.js') }}?v=3"></script>
 {% endblock %}

@@ -7,10 +7,10 @@ import traceback
 import uuid
 from datetime import datetime
 from werkzeug.utils import secure_filename
-from services.gemini_service import suggest_hashtags, refine_content
+from services.gemini_service import suggest_hashtags, add_tags_to_content
 from services.publisher_service import publish_to_both
 from dotenv import load_dotenv
-from models import db, PostHistory, ScheduledPost
+from models import db, PostHistory
 from PIL import Image
 import io
 
@@ -31,6 +31,10 @@ PUBLISH_JOBS = {}
 PUBLISH_LOCK = threading.Lock()
 JOB_MAX_AGE = 600  # 已完成的 job 保留10分钟
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), 'static', 'uploads')
+
+# 用于取消发布的事件
+CANCEL_EVENTS = {}
+CANCEL_EVENTS_LOCK = threading.Lock()
 
 def _now_label():
     return time.strftime('%H:%M:%S')
@@ -64,10 +68,31 @@ def _cleanup_jobs():
 
 def _run_publish_job(job_id, content, platforms, image_paths):
     def progress(message):
+        # 检查是否已取消
+        with CANCEL_EVENTS_LOCK:
+            cancel_event = CANCEL_EVENTS.get(job_id)
+        if cancel_event and cancel_event.is_set():
+            return
         _job_append(job_id, message)
+
+    # 创建取消事件
+    cancel_event = threading.Event()
+    with CANCEL_EVENTS_LOCK:
+        CANCEL_EVENTS[job_id] = cancel_event
 
     try:
         progress('开始发布任务')
+        
+        # 检查是否已取消
+        if cancel_event.is_set():
+            _job_update(
+                job_id,
+                status='cancelled',
+                success=False,
+                message='发布已被用户取消'
+            )
+            return
+            
         abs_paths = []
         image_urls = []
         for p in image_paths or []:
@@ -77,7 +102,19 @@ def _run_publish_job(job_id, content, platforms, image_paths):
             abs_paths.append(os.path.join(app.root_path, clean))
             if clean.startswith('static/'):
                 image_urls.append('/' + clean)
-        results = publish_to_both(content, platforms, image_paths=abs_paths, progress=progress)
+        
+        results = publish_to_both(content, platforms, image_paths=abs_paths, progress=progress, cancel_event=cancel_event)
+        
+        # 检查是否被取消
+        if cancel_event.is_set():
+            _job_update(
+                job_id,
+                status='cancelled',
+                success=False,
+                message='发布已被用户取消'
+            )
+            return
+            
         success = results['twitter'] or results['zhihu']
         message = ' | '.join(results['messages'])
 
@@ -99,14 +136,27 @@ def _run_publish_job(job_id, content, platforms, image_paths):
             message=message,
             results=results
         )
-    except Exception:
-        traceback.print_exc()
-        _job_update(
-            job_id,
-            status='error',
-            success=False,
-            message='发布失败，请查看控制台日志'
-        )
+    except Exception as e:
+        if cancel_event.is_set():
+            _job_update(
+                job_id,
+                status='cancelled',
+                success=False,
+                message='发布已被用户取消'
+            )
+        else:
+            traceback.print_exc()
+            _job_update(
+                job_id,
+                status='error',
+                success=False,
+                message=f'发布失败: {str(e)}'
+            )
+    finally:
+        # 清理取消事件
+        with CANCEL_EVENTS_LOCK:
+            if job_id in CANCEL_EVENTS:
+                del CANCEL_EVENTS[job_id]
 
 @app.route('/')
 def index():
@@ -121,10 +171,23 @@ def api_suggest_hashtags():
 
 @app.route('/api/refine', methods=['POST'])
 def api_refine():
-    data = request.get_json()
-    content = data.get('content', '')
-    refined = refine_content(content)
-    return jsonify({'content': refined})
+    try:
+        data = request.get_json()
+        content = data.get('content', '')
+        
+        if not content:
+            return jsonify({'success': False, 'message': '内容不能为空'})
+        
+        refined = add_tags_to_content(content)
+        
+        if not refined:
+            return jsonify({'success': False, 'message': 'AI 服务返回空内容'})
+        
+        return jsonify({'success': True, 'content': refined})
+    except Exception as e:
+        print(f"API refine 错误: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'服务器错误: {str(e)}'})
 
 @app.route('/api/publish', methods=['POST'])
 def api_publish():
@@ -180,50 +243,56 @@ def allowed_file(filename):
 
 @app.route('/api/upload', methods=['POST'])
 def api_upload():
-    files = request.files.getlist('images')
-    if not files:
-        return jsonify({'success': False, 'message': '未找到图片文件'})
+    try:
+        files = request.files.getlist('images')
+        if not files:
+            return jsonify({'success': False, 'message': '未找到图片文件'})
 
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-    results = []
-    errors = []
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        results = []
+        errors = []
 
-    for f in files:
-        if not f or not f.filename:
-            continue
+        for f in files:
+            if not f or not f.filename:
+                continue
+                
+            if not allowed_file(f.filename):
+                errors.append(f'{f.filename}: 不支持的文件格式')
+                continue
+                
+            f.seek(0, 2)
+            file_size = f.tell()
+            f.seek(0)
             
-        if not allowed_file(f.filename):
-            errors.append(f'{f.filename}: 不支持的文件格式')
-            continue
-            
-        f.seek(0, 2)
-        file_size = f.tell()
-        f.seek(0)
-        
-        if file_size > MAX_FILE_SIZE:
-            errors.append(f'{f.filename}: 文件大小超过20MB限制')
-            continue
-            
-        safe_name = secure_filename(f.filename)
-        if not safe_name:
-            continue
-        file_id = uuid.uuid4().hex
-        filename = f'{file_id}_{safe_name}'
-        save_path = os.path.join(UPLOAD_DIR, filename)
-        f.save(save_path)
-        resize_image_if_needed(save_path, max_size=1080)
-        rel_path = os.path.join('static', 'uploads', filename)
-        url = '/' + rel_path.replace('\\', '/')
-        results.append({
-            'id': file_id,
-            'url': url,
-            'path': rel_path.replace('\\', '/')
-        })
+            if file_size > MAX_FILE_SIZE:
+                errors.append(f'{f.filename}: 文件大小超过20MB限制')
+                continue
+                
+            safe_name = secure_filename(f.filename)
+            if not safe_name:
+                continue
+            file_id = uuid.uuid4().hex
+            filename = f'{file_id}_{safe_name}'
+            save_path = os.path.join(UPLOAD_DIR, filename)
+            f.save(save_path)
+            resize_image_if_needed(save_path, max_size=2048)
+            rel_path = os.path.join('static', 'uploads', filename)
+            url = '/' + rel_path.replace('\\', '/')
+            results.append({
+                'id': file_id,
+                'url': url,
+                'path': rel_path.replace('\\', '/')
+            })
+            print(f"图片上传成功: {filename}, URL: {url}")
 
-    if not results:
-        return jsonify({'success': False, 'message': '图片上传失败', 'errors': errors})
+        if not results:
+            return jsonify({'success': False, 'message': '图片上传失败', 'errors': errors})
 
-    return jsonify({'success': True, 'images': results, 'errors': errors if errors else None})
+        return jsonify({'success': True, 'images': results, 'errors': errors if errors else None})
+    except Exception as e:
+        print(f"上传错误: {e}")
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': f'上传失败: {str(e)}'})
 
 @app.route('/api/publish/status/<job_id>')
 def api_publish_status(job_id):
@@ -234,17 +303,25 @@ def api_publish_status(job_id):
             return jsonify({'success': False, 'message': '任务不存在'})
         return jsonify({'success': True, 'job': job})
 
+@app.route('/api/publish/cancel/<job_id>', methods=['POST'])
+def api_cancel_publish(job_id):
+    """取消正在进行的发布任务"""
+    with CANCEL_EVENTS_LOCK:
+        cancel_event = CANCEL_EVENTS.get(job_id)
+        if cancel_event:
+            cancel_event.set()
+            return jsonify({'success': True, 'message': '正在取消发布...'})
+    
+    with PUBLISH_LOCK:
+        job = PUBLISH_JOBS.get(job_id)
+        if job and job['status'] in ('done', 'error', 'cancelled'):
+            return jsonify({'success': False, 'message': '任务已完成或已取消'})
+    
+    return jsonify({'success': False, 'message': '任务不存在或已结束'})
+
 @app.route('/history')
 def history_page():
     return render_template('history.html', active_page='history')
-
-@app.route('/about')
-def about_page():
-    return render_template('about.html', active_page='about')
-
-@app.route('/scheduled')
-def scheduled_page():
-    return render_template('scheduled.html', active_page='scheduled')
 
 @app.route('/api/history')
 def api_history():
@@ -297,140 +374,6 @@ def api_batch_delete_history():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': str(e)})
-
-# 定时发布相关API
-@app.route('/api/scheduled', methods=['POST'])
-def api_schedule_post():
-    data = request.get_json()
-    content = data.get('content', '')
-    platforms = data.get('platforms', [])
-    image_paths = data.get('image_paths', [])
-    scheduled_at = data.get('scheduled_at', '')
-    
-    if not content:
-        return jsonify({'success': False, 'message': '内容不能为空'})
-    
-    if not platforms:
-        return jsonify({'success': False, 'message': '请至少选择一个平台'})
-    
-    if not scheduled_at:
-        return jsonify({'success': False, 'message': '请选择发布时间'})
-    
-    try:
-        scheduled_time = datetime.fromisoformat(scheduled_at)
-        if scheduled_time <= datetime.now():
-            return jsonify({'success': False, 'message': '发布时间必须晚于当前时间'})
-    except:
-        return jsonify({'success': False, 'message': '无效的时间格式'})
-    
-    try:
-        scheduled = ScheduledPost(
-            content=content,
-            platforms=','.join(platforms),
-            image_paths=','.join(image_paths),
-            scheduled_at=scheduled_time
-        )
-        db.session.add(scheduled)
-        db.session.commit()
-        return jsonify({'success': True, 'id': scheduled.id, 'message': '定时发布已创建'})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)})
-
-@app.route('/api/scheduled')
-def api_list_scheduled():
-    status = request.args.get('status', 'pending')
-    page = request.args.get('page', 1, type=int)
-    per_page = request.args.get('per_page', 20, type=int)
-    
-    query = ScheduledPost.query
-    if status != 'all':
-        query = query.filter_by(status=status)
-    
-    posts = query.order_by(ScheduledPost.scheduled_at.desc()).paginate(
-        page=page, per_page=per_page, error_out=False
-    )
-    
-    return jsonify({
-        'posts': [post.to_dict() for post in posts.items],
-        'total': posts.total,
-        'pages': posts.pages,
-        'current_page': page
-    })
-
-@app.route('/api/scheduled/<int:post_id>', methods=['DELETE'])
-def api_cancel_scheduled(post_id):
-    post = ScheduledPost.query.get(post_id)
-    if not post:
-        return jsonify({'success': False, 'message': '排期不存在'})
-    
-    if post.status != 'pending':
-        return jsonify({'success': False, 'message': '只能取消待发布的排期'})
-    
-    try:
-        post.status = 'cancelled'
-        db.session.commit()
-        return jsonify({'success': True, 'message': '已取消'})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'success': False, 'message': str(e)})
-
-# 定时发布调度器
-def run_scheduler():
-    while True:
-        try:
-            with app.app_context():
-                now = datetime.now()
-                due_posts = ScheduledPost.query.filter(
-                    ScheduledPost.status == 'pending',
-                    ScheduledPost.scheduled_at <= now
-                ).all()
-                
-                for post in due_posts:
-                    try:
-                        def progress(msg):
-                            print(f"[Scheduled {post.id}] {msg}")
-                        
-                        image_paths = post.image_paths.split(',') if post.image_paths else []
-                        platforms = post.platforms.split(',')
-                        
-                        results = publish_to_both(
-                            post.content, 
-                            platforms, 
-                            image_paths=image_paths, 
-                            progress=progress
-                        )
-                        
-                        post.status = 'published'
-                        post.published_at = datetime.now()
-                        
-                        # 添加到历史记录
-                        history = PostHistory(
-                            content=post.content,
-                            platforms=post.platforms,
-                            twitter_success=results.get('twitter', False),
-                            zhihu_success=results.get('zhihu', False),
-                            image_paths=post.image_paths
-                        )
-                        db.session.add(history)
-                        db.session.commit()
-                        
-                        print(f"[Scheduled {post.id}] Published successfully")
-                        
-                    except Exception as e:
-                        print(f"[Scheduled {post.id}] Error: {e}")
-                        post.status = 'failed'
-                        post.error_message = str(e)
-                        db.session.commit()
-                        
-        except Exception as e:
-            print(f"[Scheduler] Error: {e}")
-            
-        time.sleep(30)  # 每30秒检查一次
-
-# 启动调度器
-scheduler_thread = threading.Thread(target=run_scheduler, daemon=True)
-scheduler_thread.start()
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000, use_reloader=False)

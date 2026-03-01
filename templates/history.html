@@ -3,380 +3,55 @@
 {% block title %}历史记录 - Echo{% endblock %}
 
 {% block extra_css %}
-body {
-    padding-top: 60px;
-}
-
-.container {
-    width: 100%;
-    max-width: 600px;
-    padding: 20px 16px;
-}
-
-.page-header {
-    margin-bottom: 24px;
-    padding-bottom: 16px;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-}
-
-.page-title {
-    color: white;
-    font-size: 20px;
-    font-weight: 700;
-}
-
-.post-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-}
-
-.post-card {
-    background: #404040;
-    border-radius: 12px;
-    padding: 20px;
-    border: 1px solid rgba(255,255,255,0.12);
-    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-}
-
-.post-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 12px;
-}
-
-.avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, #145A7C 0%, #0D3E56 100%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-weight: 600;
-    font-size: 14px;
-}
-
-.post-meta {
-    flex: 1;
-}
-
-.author-name {
-    color: white;
-    font-size: 14px;
-    font-weight: 600;
-}
-
-.post-time {
-    color: rgba(255,255,255,0.5);
-    font-size: 12px;
-    margin-top: 2px;
-}
-
-.platform-badges {
-    display: flex;
-    gap: 6px;
-}
-
-.platform-badge {
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 10px;
-    font-weight: 600;
-}
-
-.badge-twitter {
-    background: rgba(29, 161, 242, 0.15);
-    color: #1DA1F2;
-}
-
-.badge-twitter.failed {
-    background: rgba(255, 0, 0, 0.15);
-    color: #ff4444;
-}
-
-.badge-zhihu {
-    background: rgba(0, 132, 255, 0.15);
-    color: #0084FF;
-}
-
-.badge-zhihu.failed {
-    background: rgba(255, 0, 0, 0.15);
-    color: #ff4444;
-}
-
-.post-content {
-    color: rgba(255,255,255,0.9);
-    font-size: 15px;
-    line-height: 1.6;
-    white-space: pre-wrap;
-    word-wrap: break-word;
-}
-
-.post-images {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 8px;
-    margin-top: 12px;
-}
-
-.post-image {
-    width: 100%;
-    aspect-ratio: 1;
-    object-fit: cover;
-    border-radius: 8px;
-}
-
-.loading {
-    text-align: center;
-    padding: 40px;
-    color: rgba(255,255,255,0.5);
-}
-
-.empty-state {
-    text-align: center;
-    padding: 60px 20px;
-    color: rgba(255,255,255,0.5);
-}
-
-.empty-state .material-symbols-outlined {
-    font-size: 48px;
-    margin-bottom: 16px;
-    opacity: 0.5;
-}
-
-.load-more {
-    text-align: center;
-    padding: 20px;
-}
-
-.load-more-btn {
-    padding: 10px 24px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 20px;
-    color: rgba(255,255,255,0.8);
-    cursor: pointer;
-    font-size: 13px;
-    font-weight: 600;
-}
-
-.load-more-btn:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-.header-actions {
-    display: flex;
-    gap: 12px;
-}
-
-.clear-btn {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 8px 14px;
-    background: rgba(255, 59, 48, 0.1);
-    border: 1px solid rgba(255, 59, 48, 0.3);
-    border-radius: 6px;
-    color: #FF3B30;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.clear-btn:hover {
-    background: rgba(255, 59, 48, 0.2);
-}
-
-.delete-btn {
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    width: 28px;
-    height: 28px;
-    background: rgba(0,0,0,0.5);
-    border: none;
-    border-radius: 6px;
-    color: rgba(255,255,255,0.7);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-.post-card {
-    position: relative;
-}
-
-.post-card:hover .delete-btn {
-    opacity: 1;
-}
-
-.delete-btn:hover {
-    background: rgba(255, 59, 48, 0.8);
-    color: white;
-}
-
-.filter-bar {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 20px;
-    flex-wrap: wrap;
-}
-
-.filter-select {
-    padding: 8px 12px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 6px;
-    color: rgba(255,255,255,0.8);
-    font-size: 13px;
-    cursor: pointer;
-}
-
-.filter-select option {
-    background: #363636;
-}
-
-.batch-actions {
-    display: none;
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(45, 45, 45, 0.98);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 12px;
-    padding: 12px 20px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
-    z-index: 100;
-    gap: 12px;
-    align-items: center;
-    backdrop-filter: blur(10px);
-}
-
-.batch-actions.show {
-    display: flex;
-}
-
-.batch-count {
-    color: rgba(255,255,255,0.8);
-    font-size: 13px;
-}
-
-.batch-btn {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 6px;
-    font-size: 13px;
-    cursor: pointer;
-}
-
-.batch-btn-select-all {
-    background: rgba(255,255,255,0.1);
-    color: rgba(255,255,255,0.8);
-}
-
-.batch-btn-delete {
-    background: rgba(255, 59, 48, 0.8);
-    color: white;
-}
-
-.post-checkbox {
-    position: absolute;
-    top: 12px;
-    left: 12px;
-    width: 20px;
-    height: 20px;
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.2s;
-}
-
-.post-card:hover .post-checkbox,
-.post-checkbox:checked {
-    opacity: 1;
-}
-
-.post-checkbox.visible {
-    opacity: 1;
-}
-
-.select-mode-btn {
-    padding: 8px 14px;
-    background: rgba(20, 90, 124, 0.2);
-    border: 1px solid rgba(20, 90, 124, 0.4);
-    border-radius: 6px;
-    color: rgba(255,255,255,0.8);
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.select-mode-btn:hover {
-    background: rgba(20, 90, 124, 0.3);
-}
-
-.select-mode-btn.active {
-    background: #145A7C;
-}
-
-.page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/history.css') }}?v=2">
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="page-header">
-        <h1 class="page-title">发布历史</h1>
-        <div class="header-actions">
-            <button class="select-mode-btn" id="selectModeBtn" onclick="toggleSelectMode()">
-                多选
+<div class="history-container">
+    <div class="history-header">
+        <h1 class="history-title">发布历史</h1>
+        <div class="history-actions">
+            <button class="btn btn-outline select-mode-btn" id="selectModeBtn" onclick="toggleSelectMode()">
+                <span>多选</span>
             </button>
-            <button class="clear-btn" id="clearBtn" onclick="clearAllHistory()">
+            <button class="btn btn-outline clear-btn" id="clearBtn" onclick="clearAllHistory()">
                 <span class="icon" style="width: 14px; height: 14px;">
-                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"/><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="currentColor"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z" fill="currentColor"/></svg>
                 </span>
                 <span>清空</span>
             </button>
         </div>
     </div>
     
-    <div class="filter-bar">
-        <select class="filter-select" id="platformFilter" onchange="applyFilters()">
-            <option value="">所有平台</option>
-            <option value="twitter">X (Twitter)</option>
-            <option value="zhihu">知乎</option>
-        </select>
-        <select class="filter-select" id="dateFilter" onchange="applyFilters()">
-            <option value="">所有时间</option>
-            <option value="today">今天</option>
-            <option value="week">本周</option>
-            <option value="month">本月</option>
-        </select>
+    <div class="history-filters">
+        <div class="filter-group">
+            <select class="filter-btn" id="platformFilter" onchange="applyFilters()">
+                <option value="">所有平台</option>
+                <option value="twitter">X (Twitter)</option>
+                <option value="zhihu">知乎</option>
+            </select>
+            <select class="filter-btn" id="dateFilter" onchange="applyFilters()">
+                <option value="">所有时间</option>
+                <option value="today">今天</option>
+                <option value="week">本周</option>
+                <option value="month">本月</option>
+            </select>
+        </div>
     </div>
     
-    <div id="postList" class="post-list">
-        <div class="loading">加载中...</div>
+    <div id="postList" class="history-list">
+        <div class="history-empty">加载中...</div>
     </div>
     
     <div id="loadMore" class="load-more" style="display: none;">
-        <button class="load-more-btn" onclick="loadMore()">加载更多</button>
+        <button class="btn btn-outline" onclick="loadMore()">加载更多</button>
     </div>
 </div>
 
 <div class="batch-actions" id="batchActions">
-    <span class="batch-count" id="batchCount">已选择 0 项</span>
-    <button class="batch-btn batch-btn-select-all" onclick="selectAllVisible()">全选</button>
-    <button class="batch-btn batch-btn-delete" onclick="deleteSelected()">删除选中</button>
+    <span class="batch-info" id="batchCount">已选择 0 项</span>
+    <button class="btn btn-outline" onclick="selectAllVisible()">全选</button>
+    <button class="btn btn-primary" onclick="deleteSelected()">删除选中</button>
 </div>
 {% endblock %}
 
@@ -385,81 +60,76 @@ body {
     let currentPage = 1;
     let isLoading = false;
     let hasMore = true;
+    let selectMode = false;
+    let selectedIds = new Set();
+    let allPosts = [];
     
     async function loadPosts(page = 1) {
         if (isLoading) return;
         isLoading = true;
         
-        try {
-            const response = await fetch(`/api/history?page=${page}&per_page=20`);
-            const data = await response.json();
-            
-            const postList = document.getElementById('postList');
-            
-            if (page === 1 && data.posts.length === 0) {
-                postList.innerHTML = `
-                    <div class="empty-state">
-                        <span class="icon" style="width: 48px; height: 48px; opacity: 0.5;">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"/><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z" fill="currentColor"/></svg>
-                        </span>
-                        <p>暂无发布记录</p>
+        const response = await fetch(`/api/history?page=${page}&per_page=50`);
+        const data = await response.json();
+        
+        if (page === 1) {
+            allPosts = data.posts;
+        } else {
+            allPosts = allPosts.concat(data.posts);
+        }
+        
+        const postList = document.getElementById('postList');
+        
+        if (page === 1 && data.posts.length === 0) {
+            postList.innerHTML = '<div class="history-empty">暂无发布记录</div>';
+            return;
+        }
+        
+        const postsHtml = data.posts.map(post => `
+            <div class="history-item" data-id="${post.id}">
+                <input type="checkbox" class="history-item-checkbox" onchange="toggleSelection(${post.id})">
+                <div class="history-item-header">
+                    <div class="history-item-meta">
+                        <span>${post.created_at}</span>
                     </div>
-                `;
-                return;
-            }
-            
-            const postsHtml = data.posts.map(post => `
-                <div class="post-card" data-id="${post.id}">
-                    <button class="delete-btn" onclick="deleteHistory(${post.id})" title="删除">
-                        <span class="icon" style="width: 14px; height: 14px;">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"/><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="currentColor"/></svg>
-                        </span>
-                    </button>
-                    <div class="post-header">
-                        <div class="avatar">E</div>
-                        <div class="post-meta">
-                            <div class="author-name">Echo</div>
-                            <div class="post-time">${post.created_at}</div>
-                        </div>
-                        <div class="platform-badges">
-                            ${post.platforms.includes('twitter') ? `
-                                <span class="platform-badge ${post.twitter_success ? 'badge-twitter' : 'badge-twitter failed'}">
-                                    ${post.twitter_success ? 'X' : 'X ✗'}
-                                </span>
-                            ` : ''}
-                            ${post.platforms.includes('zhihu') ? `
-                                <span class="platform-badge ${post.zhihu_success ? 'badge-zhihu' : 'badge-zhihu failed'}">
-                                    ${post.zhihu_success ? '知乎' : '知乎 ✗'}
-                                </span>
-                            ` : ''}
-                        </div>
+                    <div class="history-item-actions">
+                        <button class="btn btn-outline" onclick="deleteHistory(${post.id})" title="删除">
+                            <span class="icon" style="width: 14px; height: 14px;">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="currentColor"/></svg>
+                            </span>
+                        </button>
                     </div>
-                    <div class="post-content">${escapeHtml(post.content)}</div>
-                    ${post.image_paths.length > 0 ? `
-                        <div class="post-images">
-                            ${post.image_paths.map(img => `<img src="${img}" class="post-image" alt="">`).join('')}
-                        </div>
+                </div>
+                <div class="history-item-content">${Common.escapeHtml(post.content)}</div>
+                ${post.image_paths.length > 0 ? `
+                    <div class="history-item-images">
+                        ${post.image_paths.map(img => `<img src="${img}" alt="">`).join('')}
+                    </div>
+                ` : ''}
+                <div class="history-item-platforms">
+                    ${post.platforms.includes('twitter') ? `
+                        <span class="platform-badge ${post.twitter_success ? 'success' : 'failed'}">
+                            ${post.twitter_success ? 'X' : 'X 失败'}
+                        </span>
+                    ` : ''}
+                    ${post.platforms.includes('zhihu') ? `
+                        <span class="platform-badge ${post.zhihu_success ? 'success' : 'failed'}">
+                            ${post.zhihu_success ? '知乎' : '知乎 失败'}
+                        </span>
                     ` : ''}
                 </div>
-            `).join('');
-            
-            if (page === 1) {
-                postList.innerHTML = postsHtml;
-            } else {
-                postList.insertAdjacentHTML('beforeend', postsHtml);
-            }
-            
-            hasMore = data.current_page < data.pages;
-            document.getElementById('loadMore').style.display = hasMore ? 'block' : 'none';
-            
-        } catch (error) {
-            console.error('Error:', error);
-            document.getElementById('postList').innerHTML = `
-                <div class="empty-state">
-                    <p>加载失败，请刷新重试</p>
-                </div>
-            `;
+            </div>
+        `).join('');
+        
+        if (page === 1) {
+            postList.innerHTML = postsHtml;
+        } else {
+            postList.insertAdjacentHTML('beforeend', postsHtml);
         }
+        
+        hasMore = data.current_page < data.pages;
+        document.getElementById('loadMore').style.display = hasMore ? 'block' : 'none';
+        
+        if (page > 1) applyFilters();
         
         isLoading = false;
     }
@@ -472,87 +142,52 @@ body {
     async function deleteHistory(postId) {
         if (!confirm('确定要删除这条记录吗？')) return;
         
-        try {
-            const response = await fetch(`/api/history/${postId}`, { method: 'DELETE' });
-            const data = await response.json();
-            if (data.success) {
-                const card = document.querySelector(`.post-card[data-id="${postId}"]`);
-                if (card) card.remove();
-                
-                // Check if no more posts
-                const remainingCards = document.querySelectorAll('.post-card');
-                if (remainingCards.length === 0) {
-                    document.getElementById('postList').innerHTML = `
-                        <div class="empty-state">
-                            <span class="icon" style="width: 48px; height: 48px; opacity: 0.5;">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"/><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z" fill="currentColor"/></svg>
-                            </span>
-                            <p>暂无发布记录</p>
-                        </div>
-                    `;
-                    document.getElementById('loadMore').style.display = 'none';
-                }
-            } else {
-                alert(data.message || '删除失败');
+        const response = await fetch(`/api/history/${postId}`, { method: 'DELETE' });
+        const data = await response.json();
+        
+        if (data.success) {
+            const card = document.querySelector(`.history-item[data-id="${postId}"]`);
+            if (card) card.remove();
+            
+            const remaining = document.querySelectorAll('.history-item');
+            if (remaining.length === 0) {
+                document.getElementById('postList').innerHTML = '<div class="history-empty">暂无发布记录</div>';
+                document.getElementById('loadMore').style.display = 'none';
             }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('删除失败');
+        } else {
+            Common.showToast(data.message || '删除失败', 'error');
         }
     }
     
     async function clearAllHistory() {
         if (!confirm('确定要清空所有历史记录吗？此操作不可恢复。')) return;
         
-        try {
-            const response = await fetch('/api/history/clear', { method: 'POST' });
-            const data = await response.json();
-            if (data.success) {
-                document.getElementById('postList').innerHTML = `
-                    <div class="empty-state">
-                        <span class="icon" style="width: 48px; height: 48px; opacity: 0.5;">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"/><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z" fill="currentColor"/></svg>
-                        </span>
-                        <p>暂无发布记录</p>
-                    </div>
-                `;
-                document.getElementById('loadMore').style.display = 'none';
-            } else {
-                alert(data.message || '清空失败');
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('清空失败');
+        const response = await fetch('/api/history/clear', { method: 'POST' });
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('postList').innerHTML = '<div class="history-empty">暂无发布记录</div>';
+            document.getElementById('loadMore').style.display = 'none';
+            Common.showToast('清空成功', 'success');
+        } else {
+            Common.showToast(data.message || '清空失败', 'error');
         }
     }
-    
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-    
-    loadPosts();
-    
-    // 筛选和批量管理
-    let selectMode = false;
-    let selectedIds = new Set();
-    let allPosts = [];
     
     function toggleSelectMode() {
         selectMode = !selectMode;
         const btn = document.getElementById('selectModeBtn');
-        const checkboxes = document.querySelectorAll('.post-checkbox');
+        const checkboxes = document.querySelectorAll('.history-item-checkbox');
         const batchActions = document.getElementById('batchActions');
         
         if (selectMode) {
             btn.classList.add('active');
-            btn.textContent = '完成';
+            btn.innerHTML = '<span>完成</span>';
             checkboxes.forEach(cb => cb.classList.add('visible'));
             batchActions.classList.add('show');
         } else {
             btn.classList.remove('active');
-            btn.textContent = '多选';
+            btn.innerHTML = '<span>多选</span>';
             checkboxes.forEach(cb => {
                 cb.classList.remove('visible');
                 cb.checked = false;
@@ -573,15 +208,14 @@ body {
     }
     
     function updateBatchCount() {
-        const count = selectedIds.size;
-        document.getElementById('batchCount').textContent = `已选择 ${count} 项`;
+        document.getElementById('batchCount').textContent = `已选择 ${selectedIds.size} 项`;
     }
     
     function selectAllVisible() {
-        const visibleCards = document.querySelectorAll('.post-card:not([style*="display: none"])');
+        const visibleCards = document.querySelectorAll('.history-item:not([style*="display: none"])');
         visibleCards.forEach(card => {
             const id = parseInt(card.dataset.id);
-            const checkbox = card.querySelector('.post-checkbox');
+            const checkbox = card.querySelector('.history-item-checkbox');
             checkbox.checked = true;
             selectedIds.add(id);
         });
@@ -590,44 +224,35 @@ body {
     
     async function deleteSelected() {
         if (selectedIds.size === 0) {
-            alert('请先选择要删除的记录');
+            Common.showToast('请先选择要删除的记录', 'error');
             return;
         }
         
         if (!confirm(`确定要删除选中的 ${selectedIds.size} 条记录吗？`)) return;
         
         const ids = Array.from(selectedIds);
-        try {
-            const response = await fetch('/api/history/batch-delete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ids })
+        const response = await fetch('/api/history/batch-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids })
+        });
+        const data = await response.json();
+        
+        if (data.success) {
+            ids.forEach(id => {
+                const card = document.querySelector(`.history-item[data-id="${id}"]`);
+                if (card) card.remove();
             });
-            const data = await response.json();
+            selectedIds.clear();
+            updateBatchCount();
             
-            if (data.success) {
-                ids.forEach(id => {
-                    const card = document.querySelector(`.post-card[data-id="${id}"]`);
-                    if (card) card.remove();
-                });
-                selectedIds.clear();
-                updateBatchCount();
-                
-                const remaining = document.querySelectorAll('.post-card');
-                if (remaining.length === 0) {
-                    document.getElementById('postList').innerHTML = `
-                        <div class="empty-state">
-                            <span class="icon" style="width: 48px; height: 48px; opacity: 0.5;">
-                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"/><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z" fill="currentColor"/></svg>
-                            </span>
-                            <p>暂无发布记录</p>
-                        </div>
-                    `;
-                }
+            const remaining = document.querySelectorAll('.history-item');
+            if (remaining.length === 0) {
+                document.getElementById('postList').innerHTML = '<div class="history-empty">暂无发布记录</div>';
             }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('删除失败');
+            Common.showToast('删除成功', 'success');
+        } else {
+            Common.showToast(data.message || '删除失败', 'error');
         }
     }
     
@@ -635,7 +260,7 @@ body {
         const platform = document.getElementById('platformFilter').value;
         const dateRange = document.getElementById('dateFilter').value;
         
-        const cards = document.querySelectorAll('.post-card');
+        const cards = document.querySelectorAll('.history-item');
         cards.forEach(card => {
             const postId = parseInt(card.dataset.id);
             const post = allPosts.find(p => p.id === postId);
@@ -643,12 +268,10 @@ body {
             
             let show = true;
             
-            // Platform filter
             if (platform && !post.platforms.includes(platform)) {
                 show = false;
             }
             
-            // Date filter
             if (dateRange && show) {
                 const postDate = new Date(post.created_at);
                 const now = new Date();
@@ -668,94 +291,6 @@ body {
         });
     }
     
-    // Modify loadPosts to store all posts
-    const originalLoadPosts = loadPosts;
-    loadPosts = async function(page = 1) {
-        if (isLoading) return;
-        isLoading = true;
-        
-        try {
-            const response = await fetch(`/api/history?page=${page}&per_page=50`);
-            const data = await response.json();
-            
-            if (page === 1) {
-                allPosts = data.posts;
-            } else {
-                allPosts = allPosts.concat(data.posts);
-            }
-            
-            const postList = document.getElementById('postList');
-            
-            if (page === 1 && data.posts.length === 0) {
-                postList.innerHTML = `
-                    <div class="empty-state">
-                        <span class="icon" style="width: 48px; height: 48px; opacity: 0.5;">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"/><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14z" fill="currentColor"/></svg>
-                        </span>
-                        <p>暂无发布记录</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            const postsHtml = data.posts.map(post => `
-                <div class="post-card" data-id="${post.id}">
-                    <input type="checkbox" class="post-checkbox" onchange="toggleSelection(${post.id})">
-                    <button class="delete-btn" onclick="deleteHistory(${post.id})" title="删除">
-                        <span class="icon" style="width: 14px; height: 14px;">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z" fill="none"/><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" fill="currentColor"/></svg>
-                        </span>
-                    </button>
-                    <div class="post-header">
-                        <div class="avatar">E</div>
-                        <div class="post-meta">
-                            <div class="author-name">Echo</div>
-                            <div class="post-time">${post.created_at}</div>
-                        </div>
-                        <div class="platform-badges">
-                            ${post.platforms.includes('twitter') ? `
-                                <span class="platform-badge ${post.twitter_success ? 'badge-twitter' : 'badge-twitter failed'}">
-                                    ${post.twitter_success ? 'X' : 'X ✗'}
-                                </span>
-                            ` : ''}
-                            ${post.platforms.includes('zhihu') ? `
-                                <span class="platform-badge ${post.zhihu_success ? 'badge-zhihu' : 'badge-zhihu failed'}">
-                                    ${post.zhihu_success ? '知乎' : '知乎 ✗'}
-                                </span>
-                            ` : ''}
-                        </div>
-                    </div>
-                    <div class="post-content">${escapeHtml(post.content)}</div>
-                    ${post.image_paths.length > 0 ? `
-                        <div class="post-images">
-                            ${post.image_paths.map(img => `<img src="${img}" class="post-image" alt="">`).join('')}
-                        </div>
-                    ` : ''}
-                </div>
-            `).join('');
-            
-            if (page === 1) {
-                postList.innerHTML = postsHtml;
-            } else {
-                postList.insertAdjacentHTML('beforeend', postsHtml);
-            }
-            
-            hasMore = data.current_page < data.pages;
-            document.getElementById('loadMore').style.display = hasMore ? 'block' : 'none';
-            
-            // Re-apply filters after loading
-            if (page > 1) applyFilters();
-            
-        } catch (error) {
-            console.error('Error:', error);
-            document.getElementById('postList').innerHTML = `
-                <div class="empty-state">
-                    <p>加载失败，请刷新重试</p>
-                </div>
-            `;
-        }
-        
-        isLoading = false;
-    };
+    loadPosts();
 </script>
 {% endblock %}

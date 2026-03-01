@@ -158,15 +158,32 @@ def _copy_image_to_clipboard(image_path, progress=None):
     win32clipboard.CloseClipboard()
     _emit(progress, '知乎: 图片已复制到剪贴板')
 
+import re
+
+def _remove_hashtags(text):
+    """移除文本中的 hashtag (#话题)"""
+    return re.sub(r'#\S+', '', text).strip()
+
 def _post_idea(page, content, image_paths, progress=None):
     _emit(progress, '知乎: 打开想法输入框')
     page.get_by_text('分享此刻的想法').click()
     page.wait_for_timeout(1500)
 
     _emit(progress, '知乎: 填写内容')
+    # 过滤掉 hashtag
+    clean_content = _remove_hashtags(content)
     editor = page.get_by_role('textbox').nth(1)
-    editor.fill(content)
-    page.wait_for_timeout(800)
+    editor.fill(clean_content)
+    # 给编辑器一点时间渲染
+    page.wait_for_timeout(500)
+
+    # 尝试关闭知乎的 hashtag 联想下拉（避免遮挡发布按钮）
+    try:
+        page.keyboard.press('Escape')
+        page.wait_for_timeout(200)
+    except Exception:
+        # 如果 Esc 失败，不影响后续流程
+        pass
 
     if image_paths:
         for img_path in image_paths:
@@ -176,11 +193,32 @@ def _post_idea(page, content, image_paths, progress=None):
                 editor.focus()
                 page.wait_for_timeout(300)
                 page.keyboard.press('Control+V')
-                page.wait_for_timeout(8000)
+                # 等待图片粘贴完成，时间不宜过长以加快整体发布速度
+                page.wait_for_timeout(3000)
 
     _emit(progress, '知乎: 点击发布')
-    page.get_by_role('button', name='发布').click()
-    page.wait_for_timeout(2000)
+    # 再次尝试关闭可能遮挡按钮的浮层（如 hashtag 下拉、提示条等）
+    try:
+        page.keyboard.press('Escape')
+        page.wait_for_timeout(200)
+    except Exception:
+        pass
+
+    try:
+        # 优先按无障碍角色定位按钮，使用 force 避免前景小元素拦截点击
+        page.get_by_role('button', name='发布').click(timeout=5000, force=True)
+    except Exception:
+        try:
+            # 如果角色定位失败，按 button 标签 + 文本匹配，同样使用 force
+            page.locator("button:has-text('发布')").first.click(force=True)
+        except Exception:
+            # 最后尝试使用快捷键提交（部分编辑器支持 Ctrl+Enter 发送）
+            try:
+                page.keyboard.press('Control+Enter')
+            except Exception:
+                pass
+    # 等待发布过程完成
+    page.wait_for_timeout(1500)
     
     _emit(progress, '知乎: 发布完成')
 
@@ -194,10 +232,7 @@ def publish_to_zhihu(content, image_paths=None, progress=None):
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=False)
             context = browser.new_context(viewport=None)
-            
-            if os.path.exists(COOKIES_FILE):
-                _load_cookies(context, progress)
-            
+
             page = context.new_page()
 
             # 参考 zhihu_post.py 的流程：先打开首页 -> 加载 cookies -> 刷新 -> 发布
@@ -205,10 +240,11 @@ def publish_to_zhihu(content, image_paths=None, progress=None):
             page.goto(ZHIHU_URL)
             page.wait_for_timeout(1500)
 
-            _load_cookies(context, progress)
-            _emit(progress, '知乎: 刷新页面以应用 Cookies')
-            page.reload()
-            page.wait_for_timeout(2000)
+            if os.path.exists(COOKIES_FILE):
+                _load_cookies(context, progress)
+                _emit(progress, '知乎: 刷新页面以应用 Cookies')
+                page.reload()
+                page.wait_for_timeout(2000)
 
             _post_idea(page, content, valid_image_paths, progress)
             _save_cookies(context, progress)
@@ -224,31 +260,82 @@ def publish_to_zhihu(content, image_paths=None, progress=None):
             except:
                 pass
 
-def publish_to_both(content, platforms, image_paths=None, progress=None):
+import concurrent.futures
+
+def publish_to_both(content, platforms, image_paths=None, progress=None, cancel_event=None):
+    """
+    同时发布到多个平台（并行处理）
+    cancel_event: threading.Event, 可用于取消发布
+    """
     results = {'twitter': False, 'zhihu': False, 'messages': []}
     platforms_set = set(platforms or [])
-
-    if 'twitter' in platforms_set:
-        _emit(progress, '准备发布到 X，因为已选择 X 平台')
-        try:
-            publish_to_twitter(content, image_paths=image_paths, progress=progress)
-            results['twitter'] = True
-            results['messages'].append('X 发布成功')
-        except Exception as e:
-            traceback.print_exc()
-            results['messages'].append(f'X 发布失败: {e}')
-
-    if 'zhihu' in platforms_set:
-        _emit(progress, '准备发布到知乎，因为已选择知乎平台')
-        try:
-            publish_to_zhihu(content, image_paths=image_paths, progress=progress)
-            results['zhihu'] = True
-            results['messages'].append('知乎 发布成功')
-        except Exception as e:
-            traceback.print_exc()
-            results['messages'].append(f'知乎 发布失败: {e}')
-
-    if not results['messages']:
+    
+    if not platforms_set:
         results['messages'].append('未选择发布平台')
-
+        return results
+    
+    # 检查是否已取消
+    if cancel_event and cancel_event.is_set():
+        _emit(progress, '发布已取消')
+        results['messages'].append('发布已被用户取消')
+        return results
+    
+    # 定义每个平台的发布任务
+    def publish_twitter_task():
+        try:
+            if cancel_event and cancel_event.is_set():
+                return 'cancelled'
+            _emit(progress, 'X: 开始发布')
+            publish_to_twitter(content, image_paths=image_paths, progress=progress)
+            return 'success'
+        except Exception as e:
+            traceback.print_exc()
+            return f'error: {e}'
+    
+    def publish_zhihu_task():
+        try:
+            if cancel_event and cancel_event.is_set():
+                return 'cancelled'
+            _emit(progress, '知乎: 开始发布')
+            publish_to_zhihu(content, image_paths=image_paths, progress=progress)
+            return 'success'
+        except Exception as e:
+            traceback.print_exc()
+            return f'error: {e}'
+    
+    # 使用线程池并行发布
+    tasks = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
+        if 'twitter' in platforms_set:
+            tasks['twitter'] = executor.submit(publish_twitter_task)
+        if 'zhihu' in platforms_set:
+            tasks['zhihu'] = executor.submit(publish_zhihu_task)
+        
+        # 等待所有任务完成
+        for platform, future in tasks.items():
+            try:
+                # 检查是否被取消
+                if cancel_event and cancel_event.is_set():
+                    _emit(progress, f'{platform}: 发布被取消')
+                    results[platform] = False
+                    results['messages'].append(f'{platform} 发布被取消')
+                    continue
+                    
+                result = future.result()
+                
+                if result == 'success':
+                    results[platform] = True
+                    results['messages'].append(f'{"X" if platform == "twitter" else "知乎"} 发布成功')
+                elif result == 'cancelled':
+                    results[platform] = False
+                    results['messages'].append(f'{"X" if platform == "twitter" else "知乎"} 发布被取消')
+                else:
+                    results[platform] = False
+                    error_msg = result.replace('error: ', '')
+                    results['messages'].append(f'{"X" if platform == "twitter" else "知乎"} 发布失败: {error_msg}')
+                    
+            except Exception as e:
+                results[platform] = False
+                results['messages'].append(f'{"X" if platform == "twitter" else "知乎"} 发布失败: {e}')
+    
     return results

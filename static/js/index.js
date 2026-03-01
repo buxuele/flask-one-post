@@ -9,16 +9,49 @@
     const refineBtn = document.getElementById('refineBtn');
     const refineIcon = document.getElementById('refineIcon');
     const publishBtn = document.getElementById('publishBtn');
-    const progressDrawer = document.getElementById('progressDrawer');
-    const progressList = document.getElementById('progressList');
-    const progressResult = document.getElementById('progressResult');
-    const progressClose = document.getElementById('progressClose');
     const charCounter = document.getElementById('charCounter');
 
+    let progressDrawer, progressList, progressResult, cancelPublishBtn, progressActions;
     let publishTimer = null;
+    let currentJobId = null;
     let autoCloseTimer = null;
     const CHAR_LIMIT = 140;
     const CHAR_WARNING = 120;
+
+    function initProgressDrawer() {
+        progressDrawer = Components.createProgressDrawer();
+        progressList = document.getElementById('progressList');
+        progressResult = document.getElementById('progressResult');
+        cancelPublishBtn = document.getElementById('cancelPublishBtn');
+        progressActions = document.getElementById('progressActions');
+
+        if (cancelPublishBtn) {
+            cancelPublishBtn.addEventListener('click', handleCancelPublish);
+        }
+    }
+
+    async function handleCancelPublish() {
+        if (!currentJobId) return;
+        
+        cancelPublishBtn.disabled = true;
+        cancelPublishBtn.innerHTML = '<span>正在取消...</span>';
+        
+        const data = await Common.fetchAPI(`/api/publish/cancel/${currentJobId}`, {
+            method: 'POST'
+        }).catch(err => {
+            Common.showToast('取消请求失败', 'error');
+            return null;
+        });
+        
+        if (data && data.success) {
+            Common.showToast('正在取消发布...', 'success');
+        } else if (data) {
+            Common.showToast(data.message || '取消失败', 'error');
+        }
+        
+        cancelPublishBtn.disabled = false;
+        cancelPublishBtn.innerHTML = '<span>取消发布</span>';
+    }
     
     function renderImages() {
         const previewArea = document.querySelector('.image-preview-area');
@@ -131,20 +164,26 @@
                 body: formData
             });
             const data = await response.json();
+            console.log('上传响应:', data);
+            
             if (!data.success) {
                 const errorMsg = data.errors ? data.errors.join('\n') : (data.message || '图片上传失败');
-                showToast(errorMsg, 'error');
+                Common.showToast(errorMsg, 'error');
                 return;
             }
+            
             images = images.concat(data.images || []);
+            console.log('当前图片列表:', images);
             renderImages();
             
             if (data.errors && data.errors.length > 0) {
-                showToast(data.errors.join('\n'), 'error');
+                Common.showToast(data.errors.join('\n'), 'error');
+            } else {
+                Common.showToast(`成功上传 ${data.images.length} 张图片`, 'success');
             }
         } catch (error) {
-            console.error('Error:', error);
-            showToast('图片上传失败，请检查网络连接', 'error');
+            console.error('上传错误:', error);
+            Common.showToast('图片上传失败，请检查网络连接', 'error');
         }
     });
     
@@ -171,14 +210,8 @@
     contentInput.addEventListener('input', updateCharCounter);
     updateCharCounter();
 
-    progressClose.addEventListener('click', () => {
-        progressDrawer.classList.remove('show');
-        if (autoCloseTimer) {
-            clearTimeout(autoCloseTimer);
-            autoCloseTimer = null;
-        }
-    });
-
+    initProgressDrawer();
+    Components.createToast();
     renderImages();
 
     refineBtn.addEventListener('click', async () => {
@@ -190,21 +223,29 @@
         refineIcon.classList.add('loading');
 
         try {
-            const response = await fetch('/api/suggest-hashtags', {
+            const response = await fetch('/api/refine', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ content })
             });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
             const data = await response.json();
+            console.log('AI 响应:', data);
 
-            if (data.hashtags && data.hashtags.length > 0) {
-                const hashtagStr = data.hashtags.map(t => `#${t.replace(/^#/, '')}`).join(' ');
-                contentInput.value = contentInput.value.trim() + '\n\n' + hashtagStr;
+            if (data.success && data.content && typeof data.content === 'string') {
+                contentInput.value = data.content;
                 updateCharCounter();
+                Common.showToast('标签添加完成', 'success');
+            } else {
+                Common.showToast(data.message || 'AI 返回数据格式错误', 'error');
             }
         } catch (error) {
-            console.error('Error:', error);
-            showToast('AI 润色失败，请稍后重试', 'error');
+            console.error('AI 标签错误:', error);
+            Common.showToast(`标签添加失败: ${error.message}`, 'error');
         }
 
         isAILoading = false;
@@ -247,15 +288,18 @@
                 return;
             }
 
-            const jobId = data.job_id;
-            if (!jobId) {
+            currentJobId = data.job_id;
+            if (!currentJobId) {
                 progressResult.textContent = '未获取到任务编号';
                 progressResult.classList.add('error');
                 stopPublishing();
                 return;
             }
 
-            publishTimer = setInterval(() => pollPublishStatus(jobId, content), 1000);
+            // 显示取消按钮
+            if (progressActions) progressActions.style.display = 'block';
+
+            publishTimer = setInterval(() => pollPublishStatus(currentJobId, content), 1000);
         } catch (error) {
             console.error('Error:', error);
             progressResult.textContent = '发布失败，请检查控制台';
@@ -281,6 +325,7 @@
             if (job.status === 'done') {
                 progressResult.textContent = job.message || '发布完成';
                 progressResult.classList.add(job.success ? 'success' : 'error');
+                if (progressActions) progressActions.style.display = 'none';
                 if (job.success) {
                     contentInput.value = '';
                     images = [];
@@ -299,6 +344,14 @@
             if (job.status === 'error') {
                 progressResult.textContent = job.message || '发布失败';
                 progressResult.classList.add('error');
+                if (progressActions) progressActions.style.display = 'none';
+                stopPublishing();
+            }
+
+            if (job.status === 'cancelled') {
+                progressResult.textContent = job.message || '发布已取消';
+                progressResult.classList.add('error');
+                if (progressActions) progressActions.style.display = 'none';
                 stopPublishing();
             }
         } catch (error) {
@@ -312,8 +365,8 @@
     function renderProgress(steps) {
         progressList.innerHTML = steps.map(step => `
             <div class="progress-item">
-                <span class="progress-time">${escapeHtml(step.time || '')}</span>
-                <span>${escapeHtml(step.message || '')}</span>
+                <span class="progress-time">${Common.escapeHtml(step.time || '')}</span>
+                <span>${Common.escapeHtml(step.message || '')}</span>
             </div>
         `).join('');
         progressList.scrollTop = progressList.scrollHeight;
@@ -327,25 +380,11 @@
             clearInterval(publishTimer);
             publishTimer = null;
         }
+        currentJobId = null;
+        if (progressActions) progressActions.style.display = 'none';
     }
 
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
 
-    function showToast(message, type = 'error') {
-        const toast = document.getElementById('toast');
-        if (!toast) return;
-        toast.textContent = message;
-        toast.className = 'toast ' + type;
-        toast.classList.add('show');
-        
-        setTimeout(() => {
-            toast.classList.remove('show');
-        }, 3000);
-    }
 
     const qualityPanel = document.getElementById('qualityPanel');
     let isDraggingPanel = false;
@@ -450,7 +489,7 @@
             updateCharCounter();
         }
         renderDraftList();
-        showToast('草稿已删除', 'success');
+        Common.showToast('草稿已删除', 'success');
     };
 
     function renderDraftList() {
@@ -464,15 +503,10 @@
         draftList.innerHTML = drafts.map(draft => {
             const isActive = draft.id === currentDraftId;
             const content = draft.content || '(无内容)';
-            const date = new Date(draft.updatedAt).toLocaleDateString('zh-CN', {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
+            const date = Common.formatDate(draft.updatedAt);
             return `
                 <div class="draft-item ${isActive ? 'active' : ''}" data-id="${draft.id}">
-                    <div class="draft-item-content">${escapeHtml(content.substring(0, 50))}${content.length > 50 ? '...' : ''}</div>
+                    <div class="draft-item-content">${Common.escapeHtml(content.substring(0, 50))}${content.length > 50 ? '...' : ''}</div>
                     <div class="draft-item-meta">
                         <span>${date}</span>
                         <button class="draft-delete-btn" onclick="window.deleteDraft('${draft.id}', event)">删除</button>
@@ -524,201 +558,13 @@
                 case 's':
                     e.preventDefault();
                     saveCurrentDraft();
-                    showToast('草稿已保存', 'success');
+                    Common.showToast('草稿已保存', 'success');
                     break;
                 case 'l':
                     e.preventDefault();
                     refineBtn.click();
                     break;
-                case 'p':
-                    e.preventDefault();
-                    const pBtn = document.getElementById('previewBtn');
-                    if (pBtn) pBtn.click();
-                    break;
             }
         }
     });
-
-    // 预览功能
-    const previewBtn = document.getElementById('previewBtn');
-    const previewModal = document.getElementById('previewModal');
-    const previewClose = document.getElementById('previewClose');
-    const previewText = document.getElementById('previewText');
-    const previewImages = document.getElementById('previewImages');
-    const previewWarning = document.getElementById('previewWarning');
-    const previewTabs = document.querySelectorAll('.preview-tab');
-    let currentPreviewPlatform = 'twitter';
-
-    if (previewBtn) {
-        previewBtn.addEventListener('click', () => {
-            const content = contentInput.value;
-            previewText.textContent = content;
-            
-            previewImages.innerHTML = images.map(img => `
-                <img src="${img.url}" class="preview-image" alt="">
-            `).join('');
-
-            // 检查字符限制
-            const count = content.length;
-            if (currentPreviewPlatform === 'twitter' && count > 280) {
-                previewWarning.style.display = 'block';
-                previewWarning.textContent = `⚠️ X (Twitter) 限制 280 字符，当前 ${count} 字符，超出 ${count - 280} 字符`;
-            } else {
-                previewWarning.style.display = 'none';
-            }
-
-            previewModal.classList.add('show');
-        });
-    }
-
-    if (previewClose) {
-        previewClose.addEventListener('click', () => {
-            previewModal.classList.remove('show');
-        });
-    }
-
-    if (previewModal) {
-        previewModal.addEventListener('click', (e) => {
-            if (e.target === previewModal) {
-                previewModal.classList.remove('show');
-            }
-        });
-    }
-
-    previewTabs.forEach(tab => {
-        tab.addEventListener('click', () => {
-            previewTabs.forEach(t => t.classList.remove('active'));
-            tab.classList.add('active');
-            currentPreviewPlatform = tab.dataset.platform;
-            
-            // 重新检查字符限制
-            const content = contentInput.value;
-            const count = content.length;
-            if (currentPreviewPlatform === 'twitter' && count > 280) {
-                previewWarning.style.display = 'block';
-                previewWarning.textContent = `⚠️ X (Twitter) 限制 280 字符，当前 ${count} 字符，超出 ${count - 280} 字符`;
-            } else {
-                previewWarning.style.display = 'none';
-            }
-        });
-    });
-
-    // 定时发布
-    const scheduleBtn = document.getElementById('scheduleBtn');
-    const scheduleModal = document.getElementById('scheduleModal');
-    const scheduleClose = document.getElementById('scheduleClose');
-    const confirmScheduleBtn = document.getElementById('confirmScheduleBtn');
-    const scheduleTimeInput = document.getElementById('scheduleTime');
-
-    if (scheduleBtn) {
-        scheduleBtn.addEventListener('click', () => {
-            const content = contentInput.value;
-            if (!content) {
-                showToast('请先输入内容', 'error');
-                return;
-            }
-            
-            const platformBtns = document.querySelectorAll('.platform-btn.active');
-            if (platformBtns.length === 0) {
-                showToast('请至少选择一个发布平台', 'error');
-                return;
-            }
-            
-            // 设置默认时间为明天同一时间
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            tomorrow.setMinutes(0);
-            scheduleTimeInput.value = tomorrow.toISOString().slice(0, 16);
-            
-            scheduleModal.classList.add('show');
-        });
-    }
-
-    if (scheduleClose) {
-        scheduleClose.addEventListener('click', () => {
-            scheduleModal.classList.remove('show');
-        });
-    }
-
-    if (scheduleModal) {
-        scheduleModal.addEventListener('click', (e) => {
-            if (e.target === scheduleModal) {
-                scheduleModal.classList.remove('show');
-            }
-        });
-    }
-
-    if (confirmScheduleBtn) {
-        confirmScheduleBtn.addEventListener('click', async () => {
-            const scheduledTime = scheduleTimeInput.value;
-            if (!scheduledTime) {
-                showToast('请选择发布时间', 'error');
-                return;
-            }
-
-            const content = contentInput.value;
-            const platformBtns = document.querySelectorAll('.platform-btn.active');
-            const platforms = Array.from(platformBtns).map(btn => btn.dataset.platform);
-            const imagePathsArr = images.map(img => img.path).filter(Boolean);
-
-            try {
-                confirmScheduleBtn.disabled = true;
-                confirmScheduleBtn.innerHTML = '<span>创建中...</span>';
-                
-                const response = await fetch('/api/scheduled', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        content,
-                        platforms,
-                        image_paths: imagePathsArr,
-                        scheduled_at: scheduledTime
-                    })
-                });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                    showToast('定时发布已创建', 'success');
-                    scheduleModal.classList.remove('show');
-                    
-                    // 清除当前内容
-                    contentInput.value = '';
-                    images = [];
-                    renderImages();
-                    updateCharCounter();
-                    
-                    // 清除草稿
-                    if (currentDraftId) {
-                        const drafts = getDrafts().filter(d => d.id !== currentDraftId);
-                        saveDrafts(drafts);
-                        currentDraftId = null;
-                        localStorage.removeItem('echo_current_draft_id');
-                        renderDraftList();
-                    }
-                } else {
-                    showToast(data.message || '创建失败', 'error');
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                showToast('创建失败，请检查网络', 'error');
-            } finally {
-                confirmScheduleBtn.disabled = false;
-                confirmScheduleBtn.innerHTML = '<span>确认定时发布</span>';
-            }
-        });
-    }
-
-    // 发布成功后清除当前草稿
-    const originalStopPublishing = stopPublishing;
-    stopPublishing = function() {
-        if (typeof originalStopPublishing === 'function') originalStopPublishing();
-        if (progressResult.classList.contains('success')) {
-            const drafts = getDrafts().filter(d => d.id !== currentDraftId);
-            saveDrafts(drafts);
-            currentDraftId = null;
-            localStorage.removeItem('echo_current_draft_id');
-            renderDraftList();
-        }
-    };
 })();

@@ -1,0 +1,204 @@
+.history-container {
+    width: 100%;
+    max-width: 900px;
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 20px;
+    background: rgba(54, 54, 54, 0.95);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.history-title {
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.history-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.history-filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 16px;
+    background: rgba(54, 54, 54, 0.95);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    flex-wrap: wrap;
+}
+
+.filter-group {
+    display: flex;
+    gap: 6px;
+}
+
+.filter-btn {
+    padding: 6px 12px;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 6px;
+    color: rgba(255,255,255,0.7);
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.filter-btn.active {
+    background: #145A7C;
+    border-color: #145A7C;
+    color: white;
+}
+
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.history-item {
+    background: rgba(54, 54, 54, 0.95);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+}
+
+.history-item.selected {
+    border-color: #145A7C;
+    background: rgba(20, 90, 124, 0.1);
+}
+
+.history-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.history-item-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: rgba(255,255,255,0.5);
+}
+
+.history-item-content {
+    color: rgba(255,255,255,0.9);
+    line-height: 1.6;
+    margin-bottom: 12px;
+    white-space: pre-wrap;
+}
+
+.history-item-images {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+
+.history-item-images img {
+    width: 60px;
+    height: 60px;
+    object-fit: cover;
+    border-radius: 6px;
+}
+
+.history-item-platforms {
+    display: flex;
+    gap: 8px;
+}
+
+.platform-badge {
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.platform-badge.success {
+    background: rgba(52, 199, 89, 0.2);
+    color: #34C759;
+}
+
+.platform-badge.failed {
+    background: rgba(255, 59, 48, 0.2);
+    color: #FF3B30;
+}
+
+.history-item-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.history-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: rgba(255,255,255,0.4);
+}
+
+.batch-actions {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(54, 54, 54, 0.98);
+    padding: 16px 24px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    display: none;
+    gap: 12px;
+    align-items: center;
+    backdrop-filter: blur(10px);
+}
+
+.batch-actions.show {
+    display: flex;
+}
+
+.batch-info {
+    color: rgba(255,255,255,0.7);
+    font-size: 13px;
+}
+
+.history-item-checkbox {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.history-item-checkbox.visible {
+    opacity: 1;
+}
+
+.history-item-checkbox:checked {
+    opacity: 1;
+}
+
+.select-mode-btn.active {
+    background: #145A7C;
+    border-color: #145A7C;
+    color: white;
+}
+
+.clear-btn {
+    color: #FF3B30;
+    border-color: rgba(255, 59, 48, 0.3);
+}
+
+.load-more {
+    text-align: center;
+    padding: 20px;
+}

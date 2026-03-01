@@ -82,12 +82,22 @@ def suggest_hashtags(content):
     
     return ['AI', 'Tech', 'Innovation', '人工智能', '科技', '创新']
 
-def refine_content(content):
+def add_tags_to_content(content):
+    """添加tags到内容末尾，不改写原文"""
     if not content.strip():
         return content
     
-    system_instruction = "You are a professional editor. Improve the clarity and emotional impact of social media posts while keeping them concise. Return only the improved text."
-    prompt = f"Improve this content: {content}"
+    # 获取tags
+    tags = suggest_hashtags(content)
+    if not tags:
+        return content
     
-    response = _call_gemini_api(prompt, system_instruction)
-    return response.strip() if response else content
+    # 格式化tags (3个英文 + 3个中文)
+    en_tags = [f"#{tag}" for tag in tags[:3]]
+    zh_tags = [f"#{tag}" for tag in tags[3:6]]
+    
+    # 将tags添加到内容末尾
+    all_tags = en_tags + zh_tags
+    tags_str = " ".join(all_tags)
+    
+    return f"{content}\n\n{tags_str}"
